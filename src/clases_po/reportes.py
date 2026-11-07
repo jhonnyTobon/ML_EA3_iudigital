@@ -9,6 +9,72 @@ import pandas as pd
 class Reportes:
     """Imprime y guarda un resumen legible de un DataFrame."""
 
+    def reporte_kmeans(
+        self,
+        df: pd.DataFrame,
+        modelo: object,
+        variables: list[str],
+        ruta: str | Path = "reportes/reporte_kmeans.txt",
+    ) -> Path:
+        """Genera un reporte de segmentación K-Means."""
+        self._validar_dataframe(df)
+
+        if "cluster" not in df.columns:
+            raise ValueError("El DataFrame debe contener la columna 'cluster'.")
+
+        path = Path(ruta)
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+        resumen_clusters = (
+            df.groupby("cluster")[variables]
+            .mean()
+            .round(2)
+        )
+
+        distribucion = df["cluster"].value_counts().sort_index()
+
+        lineas = [
+            "REPORTE DE SEGMENTACIÓN K-MEANS",
+            "=" * 70,
+            "",
+            "INFORMACIÓN GENERAL",
+            "-" * 70,
+            f"Filas analizadas: {len(df)}",
+            f"Cantidad de variables: {len(variables)}",
+            f"Variables utilizadas: {', '.join(variables)}",
+            f"Número de clusters: {modelo.n_clusters}",
+            "",
+            "DISTRIBUCIÓN DE CLUSTERS",
+            "-" * 70,
+            distribucion.to_string(),
+            "",
+            "PROMEDIO DE VARIABLES POR CLUSTER",
+            "-" * 70,
+            resumen_clusters.to_string(),
+            "",
+            "INTERPRETACIÓN GENERAL",
+            "-" * 70,
+            (
+                "El algoritmo K-Means permitió identificar grupos "
+                "de viviendas con características similares "
+                "considerando precio, metros cuadrados, "
+                "habitaciones y baños."
+            ),
+            "",
+            "REPORTE DEL DATAFRAME",
+            "-" * 70,
+            self.generar_reporte(df).rstrip(),
+            "",
+            "PRIMERAS 10 FILAS",
+            "-" * 70,
+            df.head(10).to_string(index=False),
+            "",
+        ]
+
+        path.write_text("\n".join(lineas), encoding="utf-8")
+        print(f"Reporte guardado en: {path}")
+        return path
+
     def generar_reporte(self, df: pd.DataFrame) -> str:
         """Genera el contenido textual del reporte."""
         self._validar_dataframe(df)
@@ -24,7 +90,10 @@ class Reportes:
             *[f"- {columna}: {tipo}" for columna, tipo in df.dtypes.items()],
             "",
             "Valores nulos por columna:",
-            *[f"- {columna}: {cantidad}" for columna, cantidad in df.isna().sum().items()],
+            *[
+                f"- {columna}: {cantidad}"
+                for columna, cantidad in df.isna().sum().items()
+            ],
         ]
 
         if not numericas.empty:
@@ -46,7 +115,7 @@ class Reportes:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(self.generar_reporte(df), encoding="utf-8")
         return path
-        
+
     def reporte_regresion_lineal(
         self,
         df: pd.DataFrame,
@@ -89,6 +158,7 @@ class Reportes:
 
         if not isinstance(regresion, RegresionLineal):
             raise TypeError("regresion debe ser una instancia de RegresionLineal.")
+
         resultados_requeridos = {
             "modelo": regresion.modelo,
             "parametros": regresion.parametros,
@@ -96,8 +166,7 @@ class Reportes:
             "ruta_modelo": regresion.ruta_modelo,
         }
         faltantes = [
-            nombre for nombre, valor in resultados_requeridos.items()
-            if valor is None
+            nombre for nombre, valor in resultados_requeridos.items() if valor is None
         ]
         if faltantes:
             raise ValueError(
@@ -156,12 +225,12 @@ class Reportes:
             df.head(10).to_string(index=False),
             "",
         ]
+
         path = Path(ruta)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("\n".join(lineas), encoding="utf-8")
         print(f"[reporte_regresion_lineal] reporte guardado en: {path}")
         return path
-
 
     @staticmethod
     def _validar_dataframe(df: pd.DataFrame) -> None:
